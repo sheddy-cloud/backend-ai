@@ -1,0 +1,14 @@
+env.example
+env.local
+requirements.txt
+node_modules
+package-lock.json
+README.md
+.DS_Store
+.env
+.env.local
+.env.example
+.env.production
+.env.development
+.env.test
+.env.production
