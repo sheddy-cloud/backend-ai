@@ -6,9 +6,18 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
+    "prod": "NODE_ENV=production node src/server.js",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop napasa-ai-backend napasa-ml-service",
+    "pm2:restart": "pm2 restart napasa-ai-backend napasa-ml-service",
+    "pm2:logs": "pm2 logs",
+    "pm2:status": "pm2 status",
     "test": "jest",
     "db:setup": "node src/database/setup.js",
-    "db:seed": "node src/database/seed.js"
+    "db:seed": "node src/database/seed.js",
+    "docker:build": "docker-compose -f docker-compose.prod.yml build",
+    "docker:up": "docker-compose -f docker-compose.prod.yml up -d",
+    "docker:down": "docker-compose -f docker-compose.prod.yml down"
   },
   "keywords": ["safari", "ai", "recommendations", "tanzania", "wildlife"],
   "author": "Your Name",

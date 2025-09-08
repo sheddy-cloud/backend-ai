@@ -3,15 +3,16 @@ import json
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 import os
 from dotenv import load_dotenv
 import redis.asyncio as redis
 from loguru import logger
 import joblib
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.preprocessing import StandardScaler
 
 from models.prediction_models import (
     AnimalPrediction, WeatherData, TimeOfDay, Season, 
@@ -23,43 +24,90 @@ load_dotenv()
 class PredictionService:
     def __init__(self):
         self.redis_client = None
-        self.models = {}
-        self.scalers = {}
-        self.model_metrics = {}
+        self.models = {}  # park_id -> ML model
+        self.scalers = {}  # park_id -> feature scaler
+        self.model_metrics = {}  # park_id -> performance metrics
+        self.animal_types = [
+            "lions", "elephants", "cheetahs", "wildebeest", "zebras",
+            "giraffes", "buffalos", "leopards", "hyenas", "antelopes"
+        ]
+        self.parks = ["serengeti", "manyara", "mikumi", "gombe"]
+        
+        # Base probabilities for each animal type in each park
         self.base_probabilities = {
             "serengeti": {
-                "lions": 0.85, "elephants": 0.78, "wildebeest": 0.95, 
-                "cheetahs": 0.65, "zebras": 0.90, "giraffes": 0.88
+                "lions": 0.8, "elephants": 0.7, "cheetahs": 0.6, "wildebeest": 0.9,
+                "zebras": 0.8, "giraffes": 0.7, "buffalos": 0.6, "leopards": 0.5,
+                "hyenas": 0.7, "antelopes": 0.8
             },
             "manyara": {
-                "tree_lions": 0.70, "elephants": 0.90, "flamingos": 0.85,
-                "hippos": 0.80, "buffalo": 0.75
+                "lions": 0.6, "elephants": 0.8, "cheetahs": 0.4, "wildebeest": 0.5,
+                "zebras": 0.6, "giraffes": 0.5, "buffalos": 0.7, "leopards": 0.3,
+                "hyenas": 0.5, "antelopes": 0.6
             },
             "mikumi": {
-                "elephants": 0.88, "zebras": 0.95, "wildebeest": 0.82,
-                "lions": 0.70, "buffalo": 0.85
+                "lions": 0.7, "elephants": 0.8, "cheetahs": 0.5, "wildebeest": 0.7,
+                "zebras": 0.7, "giraffes": 0.6, "buffalos": 0.8, "leopards": 0.4,
+                "hyenas": 0.6, "antelopes": 0.7
             },
             "gombe": {
-                "chimpanzees": 0.75, "monkeys": 0.90, "birds": 0.85,
-                "forest_antelope": 0.60
+                "lions": 0.3, "elephants": 0.4, "cheetahs": 0.2, "wildebeest": 0.3,
+                "zebras": 0.3, "giraffes": 0.2, "buffalos": 0.4, "leopards": 0.2,
+                "hyenas": 0.3, "antelopes": 0.4
             }
         }
         
-        # Seasonal adjustments
+        # Seasonal factors for each animal type
         self.seasonal_factors = {
-            "dry": {"lions": 1.2, "elephants": 1.1, "wildebeest": 1.3, "cheetahs": 1.1},
-            "wet": {"lions": 0.8, "elephants": 0.9, "wildebeest": 0.7, "cheetahs": 0.8},
-            "transition": {"lions": 1.0, "elephants": 1.0, "wildebeest": 1.0, "cheetahs": 1.0}
+            "dry": {
+                "lions": 1.1, "elephants": 1.0, "cheetahs": 1.2, "wildebeest": 0.8,
+                "zebras": 0.9, "giraffes": 1.0, "buffalos": 1.0, "leopards": 1.1,
+                "hyenas": 1.0, "antelopes": 0.9
+            },
+            "wet": {
+                "lions": 0.9, "elephants": 1.2, "cheetahs": 0.8, "wildebeest": 1.3,
+                "zebras": 1.1, "giraffes": 0.9, "buffalos": 1.1, "leopards": 0.9,
+                "hyenas": 1.0, "antelopes": 1.1
+            },
+            "transition": {
+                "lions": 1.0, "elephants": 1.1, "cheetahs": 1.0, "wildebeest": 1.1,
+                "zebras": 1.0, "giraffes": 1.0, "buffalos": 1.0, "leopards": 1.0,
+                "hyenas": 1.0, "antelopes": 1.0
+            }
         }
         
-        # Time of day factors
+        # Time of day factors for each animal type
         self.time_factors = {
-            "early_morning": {"lions": 1.4, "elephants": 1.2, "cheetahs": 1.5},
-            "morning": {"lions": 1.1, "elephants": 1.0, "cheetahs": 1.2},
-            "afternoon": {"lions": 0.7, "elephants": 0.8, "cheetahs": 0.6},
-            "late_afternoon": {"lions": 1.0, "elephants": 1.1, "cheetahs": 0.9},
-            "evening": {"lions": 1.2, "elephants": 1.0, "cheetahs": 1.1},
-            "night": {"lions": 0.5, "elephants": 0.6, "cheetahs": 0.4}
+            "early_morning": {
+                "lions": 1.3, "elephants": 1.1, "cheetahs": 1.4, "wildebeest": 1.2,
+                "zebras": 1.1, "giraffes": 1.0, "buffalos": 1.1, "leopards": 1.2,
+                "hyenas": 1.0, "antelopes": 1.1
+            },
+            "morning": {
+                "lions": 1.0, "elephants": 1.0, "cheetahs": 1.2, "wildebeest": 1.1,
+                "zebras": 1.0, "giraffes": 1.0, "buffalos": 1.0, "leopards": 1.0,
+                "hyenas": 0.9, "antelopes": 1.0
+            },
+            "afternoon": {
+                "lions": 0.7, "elephants": 0.9, "cheetahs": 0.6, "wildebeest": 0.8,
+                "zebras": 0.9, "giraffes": 0.8, "buffalos": 0.9, "leopards": 0.8,
+                "hyenas": 0.8, "antelopes": 0.9
+            },
+            "late_afternoon": {
+                "lions": 0.8, "elephants": 1.1, "cheetahs": 0.8, "wildebeest": 0.9,
+                "zebras": 1.0, "giraffes": 0.9, "buffalos": 1.0, "leopards": 0.9,
+                "hyenas": 0.9, "antelopes": 1.0
+            },
+            "evening": {
+                "lions": 1.2, "elephants": 1.1, "cheetahs": 1.3, "wildebeest": 1.0,
+                "zebras": 1.0, "giraffes": 0.9, "buffalos": 1.0, "leopards": 1.1,
+                "hyenas": 1.1, "antelopes": 1.0
+            },
+            "night": {
+                "lions": 1.1, "elephants": 0.8, "cheetahs": 0.9, "wildebeest": 0.7,
+                "zebras": 0.8, "giraffes": 0.7, "buffalos": 0.8, "leopards": 1.2,
+                "hyenas": 1.3, "antelopes": 0.8
+            }
         }
         
     async def initialize(self):
@@ -77,11 +125,9 @@ class PredictionService:
             logger.warning(f"⚠️ Redis connection failed: {e}")
             self.redis_client = None
         
-        # Load or train ML models
-        await self._load_or_train_models()
-        
-        # Initialize model metrics
-        self._initialize_model_metrics()
+        # Load or train models for each park
+        for park_id in self.parks:
+            await self._load_or_train_model(park_id)
         
         logger.info("✅ Prediction service initialized successfully")
     
@@ -492,34 +538,112 @@ class PredictionService:
         
         return fallback_predictions
     
-    async def _load_or_train_models(self):
-        """Load existing ML models or train new ones"""
+    async def _load_or_train_model(self, park_id: str):
+        """Load existing ML model or train a new one for a park"""
         try:
-            # For now, we'll create simple models
-            # In production, you'd load pre-trained models or train on historical data
-            logger.info("📊 Initializing ML models...")
+            model_path = f"data/synthetic/models/{park_id}_model.joblib"
+            scaler_path = f"data/synthetic/models/{park_id}_scaler.joblib"
             
-            for park_id in ["serengeti", "manyara", "mikumi", "gombe"]:
-                # Create a simple Random Forest model
-                model = RandomForestRegressor(n_estimators=100, random_state=42)
-                scaler = StandardScaler()
+            if os.path.exists(model_path) and os.path.exists(scaler_path):
+                # Load existing model
+                self.models[park_id] = joblib.load(model_path)
+                self.scalers[park_id] = joblib.load(scaler_path)
+                logger.info(f"✅ Loaded existing model for {park_id}")
+            else:
+                # Train new model
+                await self._train_model(park_id)
                 
-                # Generate synthetic training data
-                X, y = self._generate_synthetic_data()
-                
-                # Fit scaler and model
-                X_scaled = scaler.fit_transform(X)
-                model.fit(X_scaled, y)
-                
-                self.models[park_id] = model
-                self.scalers[park_id] = scaler
-                
-                logger.info(f"✅ ML model initialized for {park_id}")
+        except Exception as e:
+            logger.error(f"❌ Error loading/training model for {park_id}: {e}")
+            # Train a basic model as fallback
+            await self._train_model(park_id)
+    
+    async def _train_model(self, park_id: str):
+        """Train a new ML model for a specific park"""
+        try:
+            logger.info(f"🧠 Training new ML model for {park_id}")
+            
+            # Generate synthetic training data
+            X, y = self._generate_synthetic_data(park_id)
+            
+            # Split data
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=0.2, random_state=42
+            )
+            
+            # Scale features
+            scaler = StandardScaler()
+            X_train_scaled = scaler.fit_transform(X_train)
+            X_test_scaled = scaler.transform(X_test)
+            
+            # Train Random Forest model
+            model = RandomForestRegressor(
+                n_estimators=100,
+                max_depth=10,
+                random_state=42,
+                n_jobs=-1
+            )
+            
+            model.fit(X_train_scaled, y_train)
+            
+            # Evaluate model
+            y_pred = model.predict(X_test_scaled)
+            mse = mean_squared_error(y_test, y_pred)
+            r2 = r2_score(y_test, y_pred)
+            
+            # Store model and scaler
+            self.models[park_id] = model
+            self.scalers[park_id] = scaler
+            
+            # Calculate and store metrics
+            self.model_metrics[park_id] = MLModelMetrics(
+                model_name=f"{park_id}_wildlife_model",
+                accuracy=r2,
+                precision=0.85,  # Placeholder
+                recall=0.82,      # Placeholder
+                f1_score=0.83,    # Placeholder
+                last_trained=datetime.now(),
+                training_data_size=len(X_train),
+                prediction_count=0
+            )
+            
+            # Save model and scaler
+            os.makedirs("data/synthetic/models", exist_ok=True)
+            joblib.dump(model, f"data/synthetic/models/{park_id}_model.joblib")
+            joblib.dump(scaler, f"data/synthetic/models/{park_id}_scaler.joblib")
+            
+            logger.info(f"✅ Model trained for {park_id} - R²: {r2:.3f}, MSE: {mse:.3f}")
             
         except Exception as e:
-            logger.error(f"❌ Error initializing ML models: {e}")
+            logger.error(f"❌ Error training model for {park_id}: {e}")
+            # Create a simple fallback model
+            self._create_fallback_model(park_id)
     
-    def _generate_synthetic_data(self):
+    def _create_fallback_model(self, park_id: str):
+        """Create a simple fallback model when training fails"""
+        logger.warning(f"⚠️ Creating fallback model for {park_id}")
+        
+        # Simple rule-based model as fallback
+        class FallbackModel:
+            def predict(self, X):
+                # Return random probabilities between 0.1 and 0.9
+                return np.random.uniform(0.1, 0.9, len(X))
+        
+        self.models[park_id] = FallbackModel()
+        self.scalers[park_id] = StandardScaler()
+        
+        self.model_metrics[park_id] = MLModelMetrics(
+            model_name=f"{park_id}_fallback_model",
+            accuracy=0.5,
+            precision=0.5,
+            recall=0.5,
+            f1_score=0.5,
+            last_trained=datetime.now(),
+            training_data_size=0,
+            prediction_count=0
+        )
+    
+    def _generate_synthetic_data(self, park_id: str):
         """Generate synthetic training data for ML models"""
         np.random.seed(42)
         n_samples = 1000
@@ -532,6 +656,54 @@ class PredictionService:
         y = 0.8 + 0.4 * np.random.rand(n_samples)  # Values between 0.8 and 1.2
         
         return X, y
+    
+    async def retrain_model(self, park_id: str):
+        """Retrain ML model for a specific park"""
+        try:
+            logger.info(f"🔄 Retraining ML model for {park_id}")
+            await self._train_model(park_id)
+            logger.info(f"✅ Model retrained successfully for {park_id}")
+        except Exception as e:
+            logger.error(f"❌ Error retraining model for {park_id}: {e}")
+    
+    async def get_prediction_history(self, park_id: str, hours: int = 24) -> List[Dict[str, Any]]:
+        """Get prediction history for a park"""
+        try:
+            if not self.redis_client:
+                return []
+            
+            # Get cached predictions from the last N hours
+            pattern = f"predictions:{park_id}:*"
+            keys = await self.redis_client.keys(pattern)
+            
+            history = []
+            cutoff_time = datetime.now() - timedelta(hours=hours)
+            
+            for key in keys:
+                try:
+                    # Extract timestamp from key
+                    timestamp_str = key.split(":")[-1]
+                    timestamp = datetime.strptime(timestamp_str, "%Y%m%d_%H")
+                    
+                    if timestamp >= cutoff_time:
+                        predictions_data = await self.redis_client.get(key)
+                        if predictions_data:
+                            predictions = json.loads(predictions_data)
+                            history.append({
+                                "timestamp": timestamp.isoformat(),
+                                "predictions": predictions
+                            })
+                except Exception as e:
+                    logger.error(f"❌ Error parsing prediction history key {key}: {e}")
+            
+            # Sort by timestamp (most recent first)
+            history.sort(key=lambda x: x["timestamp"], reverse=True)
+            
+            return history
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting prediction history: {e}")
+            return []
     
     def _initialize_model_metrics(self):
         """Initialize model performance metrics"""
