@@ -71,6 +71,10 @@ fi
 echo "📁 Setting up application directory..."
 sudo mkdir -p /opt/napasa-ai-backend
 sudo chown $USER:$USER /opt/napasa-ai-backend
+
+# Copy files to application directory (assuming we're running from the backend-ai folder)
+echo "📁 Copying application files..."
+cp -r . /opt/napasa-ai-backend/
 cd /opt/napasa-ai-backend
 
 # Install dependencies
@@ -157,6 +161,15 @@ pm2 startup
 # Configure Nginx for AI backend
 echo "⚙️ Configuring Nginx for AI backend..."
 
+# Add rate limiting zones to main nginx.conf
+echo "⚙️ Adding rate limiting zones to main nginx.conf..."
+sudo tee -a /etc/nginx/nginx.conf > /dev/null << 'EOF'
+
+# Rate limiting zones for AI backend
+limit_req_zone $binary_remote_addr zone=ai_api:10m rate=10r/s;
+limit_req_zone $binary_remote_addr zone=ml_api:10m rate=5r/s;
+EOF
+
 # Remove existing configuration if it exists
 sudo rm -f /etc/nginx/sites-available/napasa-ai-backend
 sudo rm -f /etc/nginx/sites-enabled/napasa-ai-backend
@@ -179,10 +192,6 @@ server {
     gzip_min_length 1024;
     gzip_proxied expired no-cache no-store private auth;
     gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/xml+rss application/javascript;
-
-    # Rate limiting
-    limit_req_zone $binary_remote_addr zone=ai_api:10m rate=10r/s;
-    limit_req_zone $binary_remote_addr zone=ml_api:10m rate=5r/s;
 
     # AI Backend API routes
     location /ai/api/ {
