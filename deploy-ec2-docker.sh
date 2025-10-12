@@ -77,7 +77,7 @@ sudo rm -f /etc/nginx/sites-enabled/napasa-ai-backend
 sudo tee /etc/nginx/sites-available/napasa-ai-backend > /dev/null << 'EOF'
 server {
     listen 80;
-    server_name 13.51.162.253;
+    server_name 16.171.29.165;
 
     # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
@@ -199,11 +199,11 @@ fi
 
 echo "✅ Docker deployment completed!"
 echo "🌐 Your AI Backend is now available at:"
-echo "   - AI Backend: http://13.51.162.253/ai/api"
-echo "   - ML Service: http://13.51.162.253/ml"
+echo "   - AI Backend: http://16.171.29.165/ai/api"
+echo "   - ML Service: http://16.171.29.165/ml"
 echo "🏥 Health checks:"
-echo "   - AI Backend: http://13.51.162.253/ai/health"
-echo "   - ML Service: http://13.51.162.253/ml/health"
+echo "   - AI Backend: http://16.171.29.165/ai/health"
+echo "   - ML Service: http://16.171.29.165/ml/health"
 echo ""
 echo "📋 Useful Docker commands:"
 echo "  docker-compose -f docker-compose.prod.yml ps     # Check container status"

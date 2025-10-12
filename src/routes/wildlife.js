@@ -10,45 +10,55 @@ router.get('/predictions/:parkId', async (req, res) => {
 
     console.log(`🦁 Fetching wildlife predictions for ${parkId}`);
 
-    // Get wildlife predictions from database
-    const predictions = await getRows(`
-      SELECT 
-        animal_type,
-        probability,
-        optimal_time,
-        best_location,
-        confidence,
-        tips,
-        prediction_date
-      FROM wildlife_predictions 
-      WHERE park_id = $1
-      ORDER BY probability DESC
-    `, [parkId]);
+    // Try to get predictions from database
+    try {
+      const predictions = await getRows(`
+        SELECT 
+          animal_type,
+          probability,
+          optimal_time,
+          best_location,
+          confidence,
+          tips,
+          prediction_date
+        FROM wildlife_predictions 
+        WHERE park_id = $1
+        ORDER BY probability DESC
+      `, [parkId]);
 
-    if (predictions.length === 0) {
-      return res.status(404).json({
-        error: 'No predictions found',
-        message: `No wildlife predictions available for ${parkId}`
-      });
+      if (predictions.length > 0) {
+        // Format response to match your Flutter app structure
+        const formattedPredictions = {};
+        predictions.forEach(prediction => {
+          formattedPredictions[prediction.animal_type] = {
+            probability: parseFloat(prediction.probability),
+            optimalTime: prediction.optimal_time,
+            bestLocation: prediction.best_location,
+            confidence: parseFloat(prediction.confidence),
+            tips: prediction.tips
+          };
+        });
+
+        return res.json({
+          success: true,
+          data: formattedPredictions,
+          parkId: parkId,
+          timestamp: new Date().toISOString()
+        });
+      }
+    } catch (dbError) {
+      console.log('📊 Database not available, using fallback data');
     }
 
-    // Format response to match your Flutter app structure
-    const formattedPredictions = {};
-    predictions.forEach(prediction => {
-      formattedPredictions[prediction.animal_type] = {
-        probability: parseFloat(prediction.probability),
-        optimalTime: prediction.optimal_time,
-        bestLocation: prediction.best_location,
-        confidence: parseFloat(prediction.confidence),
-        tips: prediction.tips
-      };
-    });
-
+    // Fallback data when database is not available
+    const fallbackData = getFallbackPredictions(parkId);
+    
     res.json({
       success: true,
-      data: formattedPredictions,
+      data: fallbackData,
       parkId: parkId,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      source: 'fallback'
     });
 
   } catch (error) {
@@ -177,6 +187,86 @@ router.get('/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// Fallback data function
+function getFallbackPredictions(parkId) {
+  const predictions = {
+    'serengeti': {
+      'lions': {
+        'probability': 0.85,
+        'optimalTime': '06:00 - 09:00',
+        'bestLocation': 'Central Serengeti Plains',
+        'confidence': 0.92,
+        'tips': 'Best viewed during early morning game drives'
+      },
+      'elephants': {
+        'probability': 0.78,
+        'optimalTime': '15:00 - 18:00',
+        'bestLocation': 'Seronera River Valley',
+        'confidence': 0.88,
+        'tips': 'Look near water sources in the afternoon'
+      },
+      'wildebeest': {
+        'probability': 0.95,
+        'optimalTime': 'All day',
+        'bestLocation': 'Migration routes (seasonal)',
+        'confidence': 0.98,
+        'tips': 'Migration peaks from July to October'
+      }
+    },
+    'manyara': {
+      'tree_lions': {
+        'probability': 0.70,
+        'optimalTime': '14:00 - 17:00',
+        'bestLocation': 'Lake Manyara shores',
+        'confidence': 0.80,
+        'tips': 'Unique tree-climbing behavior in this park'
+      },
+      'elephants': {
+        'probability': 0.90,
+        'optimalTime': '06:00 - 09:00',
+        'bestLocation': 'Lake Manyara shores',
+        'confidence': 0.95,
+        'tips': 'Excellent elephant viewing year-round'
+      }
+    },
+    'mikumi': {
+      'elephants': {
+        'probability': 0.88,
+        'optimalTime': '06:00 - 09:00',
+        'bestLocation': 'Mkata Plains',
+        'confidence': 0.92,
+        'tips': 'Large herds frequently seen on the plains'
+      },
+      'zebras': {
+        'probability': 0.95,
+        'optimalTime': 'All day',
+        'bestLocation': 'Mkata Plains',
+        'confidence': 0.98,
+        'tips': 'Abundant throughout the park'
+      }
+    },
+    'gombe': {
+      'chimpanzees': {
+        'probability': 0.75,
+        'optimalTime': '06:00 - 10:00',
+        'bestLocation': 'Forest trails',
+        'confidence': 0.85,
+        'tips': 'Requires guided forest walks'
+      }
+    }
+  };
+
+  return predictions[parkId] || {
+    'general_wildlife': {
+      'probability': 0.70,
+      'optimalTime': '06:00 - 10:00',
+      'bestLocation': 'Throughout the park',
+      'confidence': 0.80,
+      'tips': 'Wildlife viewing is best during early morning and late afternoon'
+    }
+  };
+}
 
 module.exports = router;
 
