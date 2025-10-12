@@ -216,3 +216,6 @@ echo "⚠️ Don't forget to:"
 echo "  1. Configure your EC2 security group to allow ports 80, 3000, and 8000"
 echo "  2. Update your Flutter app to use the AI endpoints"
 echo "  3. Edit .env file with your actual configuration"
+
+
+

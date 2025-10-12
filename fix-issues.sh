@@ -215,3 +215,6 @@ echo "pm2 status                    # Check app status"
 echo "pm2 logs napasa-ai-backend    # View AI backend logs"
 echo "pm2 logs napasa-ml-service    # View ML service logs"
 echo "sudo systemctl status nginx   # Check Nginx"
+
+
+

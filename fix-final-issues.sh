@@ -230,3 +230,6 @@ echo "   🌐 AI Backend: http://13.51.162.253/ai/health"
 echo "   🌐 ML Service: http://13.51.162.253/ml/health"
 echo "   🌐 Direct AI:  http://13.51.162.253:3000/health"
 echo "   🌐 Direct ML:  http://13.51.162.253:8000/health"
+
+
+

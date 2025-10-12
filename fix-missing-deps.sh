@@ -75,3 +75,6 @@ echo "🎉 Missing dependencies fix completed!"
 echo ""
 echo "📋 PM2 Status:"
 pm2 status
+
+
+

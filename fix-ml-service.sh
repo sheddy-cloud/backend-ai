@@ -115,3 +115,6 @@ echo "📋 Useful commands:"
 echo "pm2 status                    # Check app status"
 echo "pm2 logs napasa-ml-service    # View ML service logs"
 echo "pm2 restart napasa-ml-service # Restart ML service"
+
+
+

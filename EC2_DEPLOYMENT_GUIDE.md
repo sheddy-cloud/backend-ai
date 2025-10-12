@@ -256,3 +256,6 @@ docker-compose -f docker-compose.prod.yml logs -f
 ```
 
 Your NAPASA AI backend is now ready for production! 🎉
+
+
+

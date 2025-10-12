@@ -142,3 +142,6 @@ echo "   🌐 Direct ML:  http://13.51.162.253:8000/health"
 echo ""
 echo "📋 PM2 Status:"
 pm2 status
+
+
+

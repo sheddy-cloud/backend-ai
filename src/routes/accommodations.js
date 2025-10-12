@@ -30,12 +30,27 @@ router.get('/', async (req, res) => {
     `);
 
     // Parse JSON fields
-    const formattedAccommodations = accommodations.map(acc => ({
-      ...acc,
-      amenities: JSON.parse(acc.amenities || '[]'),
-      rating: parseFloat(acc.rating),
-      score: parseFloat(acc.score)
-    }));
+    const formattedAccommodations = accommodations.map(acc => {
+      try {
+        return {
+          ...acc,
+          amenities: JSON.parse(acc.amenities || '[]'),
+          rating: parseFloat(acc.rating),
+          score: parseFloat(acc.score),
+          family_friendly: acc.family_friendly === true || acc.family_friendly === 'true' || acc.family_friendly === 't'
+        };
+      } catch (error) {
+        console.error('Error parsing accommodation:', acc.accommodation_id, error);
+        console.error('Raw amenities:', acc.amenities);
+        return {
+          ...acc,
+          amenities: [],
+          rating: parseFloat(acc.rating),
+          score: parseFloat(acc.score),
+          family_friendly: acc.family_friendly === true || acc.family_friendly === 'true' || acc.family_friendly === 't'
+        };
+      }
+    });
 
     res.json({
       success: true,
@@ -116,12 +131,27 @@ router.get('/park/:parkId', async (req, res) => {
     }
 
     // Parse JSON fields
-    const formattedAccommodations = accommodations.map(acc => ({
-      ...acc,
-      amenities: JSON.parse(acc.amenities || '[]'),
-      rating: parseFloat(acc.rating),
-      score: parseFloat(acc.score)
-    }));
+    const formattedAccommodations = accommodations.map(acc => {
+      try {
+        return {
+          ...acc,
+          amenities: JSON.parse(acc.amenities || '[]'),
+          rating: parseFloat(acc.rating),
+          score: parseFloat(acc.score),
+          family_friendly: acc.family_friendly === true || acc.family_friendly === 'true' || acc.family_friendly === 't'
+        };
+      } catch (error) {
+        console.error('Error parsing accommodation:', acc.accommodation_id, error);
+        console.error('Raw amenities:', acc.amenities);
+        return {
+          ...acc,
+          amenities: [],
+          rating: parseFloat(acc.rating),
+          score: parseFloat(acc.score),
+          family_friendly: acc.family_friendly === true || acc.family_friendly === 'true' || acc.family_friendly === 't'
+        };
+      }
+    });
 
     res.json({
       success: true,
