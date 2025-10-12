@@ -2,7 +2,7 @@
 
 echo "🚀 Deploying NAPASA AI Backend to Fresh EC2 Instance"
 echo "=================================================="
-echo "Instance IP: 13.53.129.155"
+echo "Instance IP: 16.171.29.165"
 echo ""
 
 # Update system
@@ -296,6 +296,7 @@ echo "   pm2 status                    # Check app status"
 echo "   pm2 logs napasa-ai-backend    # View AI backend logs"
 echo "   pm2 logs napasa-ml-service    # View ML service logs"
 echo "   sudo systemctl status nginx   # Check Nginx"
+
 
 
 
