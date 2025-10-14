@@ -198,3 +198,5 @@ echo "   1. Update EC2 Security Groups in AWS Console"
 echo "   2. Open ports: 80, 3000, 8000 (Source: 0.0.0.0/0)"
 echo "   3. Test external access"
 echo "   4. Your Flutter app should now connect successfully!"
+
+
