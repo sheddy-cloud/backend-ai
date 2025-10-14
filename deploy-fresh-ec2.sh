@@ -55,13 +55,13 @@ sudo apt install -y nginx
 
 # Create application directory
 echo "7. Setting up application directory..."
-sudo mkdir -p /opt/napasa-ai-backend
-sudo chown -R ubuntu:ubuntu /opt/napasa-ai-backend
+sudo mkdir -p /var/www/napasa-ai-backend
+sudo chown -R ubuntu:ubuntu /var/www/napasa-ai-backend
 
 # Copy application files (assuming we're running from the backend-ai folder)
 echo "8. Copying application files..."
-cp -r . /opt/napasa-ai-backend/
-cd /opt/napasa-ai-backend
+cp -r . /var/www/napasa-ai-backend/
+cd /var/www/napasa-ai-backend
 
 # Install Node.js dependencies
 echo "9. Installing Node.js dependencies..."
@@ -173,9 +173,10 @@ module.exports = {
 };
 EOF
 
-# Create logs directories
+# Create logs and uploads directories
 mkdir -p logs
 mkdir -p ml_service/logs
+mkdir -p uploads
 
 # Start applications with PM2
 echo "15. Starting applications with PM2..."
@@ -188,38 +189,8 @@ pm2 save
 pm2 startup
 
 echo "16. Configuring Nginx..."
-# Create Nginx configuration
-sudo tee /etc/nginx/sites-available/napasa-ai-backend > /dev/null << 'EOF'
-server {
-    listen 80 default_server;
-    listen [::]:80 default_server;
-
-    server_name _;
-
-    location /ai/ {
-        proxy_pass http://127.0.0.1:3000/;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /ml/ {
-        proxy_pass http://127.0.0.1:8000/;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # Fallback for root requests
-    location / {
-        return 404;
-    }
-}
-EOF
+# Copy our updated nginx configuration
+sudo cp nginx.conf /etc/nginx/sites-available/napasa-ai-backend
 
 # Enable the site
 sudo rm -f /etc/nginx/sites-enabled/default
