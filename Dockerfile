@@ -1,31 +1,24 @@
-FROM node:18-alpine
+# Use a lightweight Python image
+FROM python:3.11-slim
 
-# Set working directory
+# Set the working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy the requirements first to leverage Docker cache
+COPY requirements.txt .
 
-# Install all dependencies (including dev dependencies for development)
-RUN npm install
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source code
+# Copy the rest of the app
 COPY . .
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nodejs -u 1001
+# Expose the FastAPI port
+EXPOSE 8000
 
-# Change ownership of the app directory
-RUN chown -R nodejs:nodejs /app
-USER nodejs
-
-# Expose port
-EXPOSE 3000
-
-# Health check
+# Healthcheck (optional)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+  CMD curl -f http://localhost:8000/health || exit 1
 
-# Start the application
-CMD ["npm", "start"]
+# Start the FastAPI server
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
