@@ -1,0 +1,47 @@
+# ml_service-specific .dockerignore — keep Python virtualenvs, datasets and model artifacts out of build context
+
+# Python virtualenvs / envs
+venv
+.venv
+env
+.env
+pip-wheel-metadata/
+
+# Caches / compiled files
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg-info
+.eggs
+
+# Test / notebook caches
+.pytest_cache
+.mypy_cache
+.ipynb_checkpoints
+
+# Data / models / logs (very large)
+data
+datasets
+models
+*.h5
+*.pt
+*.pth
+*.pkl
+*.joblib
+*.onnx
+logs
+*.log
+
+# Git / editor
+.git
+.vscode
+.idea
+
+# Packaging / build artifacts
+build
+dist
+*.egg
+*.tar.gz
+*.zip
