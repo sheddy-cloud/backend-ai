@@ -1,40 +1,6 @@
 version: '3.8'
-
 services:
-  # PostgreSQL Database
-  postgres:
-    image: postgres:15-alpine
-    container_name: ai_safari_postgres
-    environment:
-      POSTGRES_DB: ai_safari_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password123
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./src/database/setup.sql:/docker-entrypoint-initdb.d/setup.sql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
-  # Redis Cache
-  redis:
-    image: redis:7-alpine
-    container_name: ai_safari_redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # Node.js Backend (Phase 1)
   backend:
     build: .
     container_name: ai_safari_backend
