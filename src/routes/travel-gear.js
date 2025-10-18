@@ -1,6 +1,6 @@
 const express = require('express');
 const { protect, authorize } = require('../middleware/auth');
-const { query, insert, update, delete: deleteRecord } = require('../config/database');
+const { getRows, getRow, execute } = require('../database/config');
 
 const router = express.Router();
 
@@ -12,7 +12,7 @@ router.get('/', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
-    const { category, brand, minPrice, maxPrice, search } = req.query;
+    const { category, brand, minPrice, maxPrice } = req.query;
 
     let whereClause = 'is_active = $1';
     let params = [true];
@@ -26,8 +26,8 @@ router.get('/', async (req, res) => {
 
     if (brand) {
       paramCount++;
-      whereClause += ` AND brand = $${paramCount}`;
-      params.push(brand);
+      whereClause += ` AND brand ILIKE $${paramCount}`;
+      params.push(`%${brand}%`);
     }
 
     if (minPrice) {
@@ -42,26 +42,17 @@ router.get('/', async (req, res) => {
       params.push(parseFloat(maxPrice));
     }
 
-    if (search) {
-      paramCount++;
-      whereClause += ` AND (name ILIKE $${paramCount} OR description ILIKE $${paramCount})`;
-      params.push(`%${search}%`);
-    }
+    const gear = await getRows(`
+      SELECT * FROM travel_gear 
+      WHERE ${whereClause}
+      ORDER BY rating DESC, created_at DESC
+      LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}
+    `, [...params, limit, offset]);
 
-    const gear = await query(
-      'travel_gear',
-      where: whereClause,
-      whereArgs: params,
-      orderBy: 'rating DESC, created_at DESC',
-      limit: limit,
-      offset: offset
-    );
-
-    const totalResult = await query(
-      'travel_gear',
-      where: whereClause,
-      whereArgs: params
-    );
+    const totalResult = await getRow(`
+      SELECT COUNT(*) as count FROM travel_gear 
+      WHERE ${whereClause}
+    `, params);
 
     res.json({
       success: true,
@@ -69,8 +60,8 @@ router.get('/', async (req, res) => {
         gear,
         pagination: {
           current: page,
-          pages: Math.ceil(totalResult.length / limit),
-          total: totalResult.length
+          pages: Math.ceil(totalResult.count / limit),
+          total: parseInt(totalResult.count)
         }
       }
     });
@@ -88,13 +79,12 @@ router.get('/', async (req, res) => {
 // @access  Public
 router.get('/:id', async (req, res) => {
   try {
-    const gear = await query(
-      'travel_gear',
-      where: 'id = $1 AND is_active = $2',
-      whereArgs: [req.params.id, true]
+    const gear = await getRow(
+      'SELECT * FROM travel_gear WHERE id = $1 AND is_active = $2',
+      [req.params.id, true]
     );
 
-    if (gear.length === 0) {
+    if (!gear) {
       return res.status(404).json({
         success: false,
         message: 'Travel gear not found'
@@ -103,7 +93,7 @@ router.get('/:id', async (req, res) => {
 
     res.json({
       success: true,
-      data: { gear: gear[0] }
+      data: { gear }
     });
   } catch (error) {
     console.error('Get travel gear error:', error);
@@ -119,41 +109,26 @@ router.get('/:id', async (req, res) => {
 // @access  Private/Travel Gear Seller
 router.post('/', protect, authorize('Travel Gear Seller'), async (req, res) => {
   try {
-    const {
-      name,
-      category,
-      description,
-      priceUsd,
-      brand,
-      imagePath,
-      specifications,
-      availability
-    } = req.body;
-
     const gearData = {
-      id: `gear_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      name,
-      category,
-      description,
-      price_usd: parseFloat(priceUsd),
-      brand,
-      image_path: imagePath,
-      specifications: specifications || {},
-      availability: parseInt(availability) || 1,
+      ...req.body,
       seller_id: req.user.id,
-      rating: 0.0,
-      total_reviews: 0,
       is_active: true,
       created_at: Date.now(),
       updated_at: Date.now()
     };
 
-    const result = await insert('travel_gear', gearData);
+    const result = await execute(
+      `INSERT INTO travel_gear (id, name, description, category, brand, price_usd, rating, total_reviews, seller_id, is_active, created_at, updated_at)
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+       RETURNING *`,
+      [gearData.name, gearData.description, gearData.category, gearData.brand,
+       gearData.price_usd, gearData.rating || 0, gearData.total_reviews || 0, gearData.seller_id, gearData.is_active]
+    );
 
     res.status(201).json({
       success: true,
       message: 'Travel gear created successfully',
-      data: { gear: gearData }
+      data: { gear: result.rows[0] }
     });
   } catch (error) {
     console.error('Create travel gear error:', error);
@@ -169,35 +144,29 @@ router.post('/', protect, authorize('Travel Gear Seller'), async (req, res) => {
 // @access  Private/Travel Gear Seller
 router.put('/:id', protect, authorize('Travel Gear Seller'), async (req, res) => {
   try {
-    // Check if user owns this gear
-    const gear = await query(
-      'travel_gear',
-      where: 'id = $1 AND seller_id = $2',
-      whereArgs: [req.params.id, req.user.id]
-    );
-
-    if (gear.length === 0) {
-      return res.status(403).json({
-        success: false,
-        message: 'Access denied'
-      });
-    }
-
     const updateData = {
       ...req.body,
       updated_at: Date.now()
     };
 
-    const result = await update(
-      'travel_gear',
-      updateData,
-      where: 'id = $1',
-      whereArgs: [req.params.id]
+    const setClause = Object.keys(updateData).map((key, index) => `${key} = $${index + 1}`).join(', ');
+    const values = Object.values(updateData);
+    const result = await execute(
+      `UPDATE travel_gear SET ${setClause}, updated_at = NOW() WHERE id = $${values.length + 1} RETURNING *`,
+      [...values, req.params.id]
     );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Travel gear not found'
+      });
+    }
 
     res.json({
       success: true,
-      message: 'Travel gear updated successfully'
+      message: 'Travel gear updated successfully',
+      data: { gear: result.rows[0] }
     });
   } catch (error) {
     console.error('Update travel gear error:', error);
@@ -213,26 +182,17 @@ router.put('/:id', protect, authorize('Travel Gear Seller'), async (req, res) =>
 // @access  Private/Travel Gear Seller
 router.delete('/:id', protect, authorize('Travel Gear Seller'), async (req, res) => {
   try {
-    // Check if user owns this gear
-    const gear = await query(
-      'travel_gear',
-      where: 'id = $1 AND seller_id = $2',
-      whereArgs: [req.params.id, req.user.id]
+    const result = await execute(
+      'UPDATE travel_gear SET is_active = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      [false, req.params.id]
     );
 
-    if (gear.length === 0) {
-      return res.status(403).json({
+    if (result.rows.length === 0) {
+      return res.status(404).json({
         success: false,
-        message: 'Access denied'
+        message: 'Travel gear not found'
       });
     }
-
-    const result = await update(
-      'travel_gear',
-      { is_active: false, updated_at: Date.now() },
-      where: 'id = $1',
-      whereArgs: [req.params.id]
-    );
 
     res.json({
       success: true,
@@ -240,31 +200,6 @@ router.delete('/:id', protect, authorize('Travel Gear Seller'), async (req, res)
     });
   } catch (error) {
     console.error('Delete travel gear error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error'
-    });
-  }
-});
-
-// @desc    Get travel gear by seller
-// @route   GET /api/travel-gear/seller/:sellerId
-// @access  Public
-router.get('/seller/:sellerId', async (req, res) => {
-  try {
-    const gear = await query(
-      'travel_gear',
-      where: 'seller_id = $1 AND is_active = $2',
-      whereArgs: [req.params.sellerId, true],
-      orderBy: 'created_at DESC'
-    );
-
-    res.json({
-      success: true,
-      data: { gear }
-    });
-  } catch (error) {
-    console.error('Get travel gear by seller error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error'
