@@ -13,6 +13,15 @@ const wildlifeRoutes = require('./routes/wildlife');
 const routeRoutes = require('./routes/routes');
 const accommodationRoutes = require('./routes/accommodations');
 const recommendationRoutes = require('./routes/recommendations');
+const userRoutes = require('./routes/users');
+const parkRoutes = require('./routes/parks');
+const tourRoutes = require('./routes/tours');
+const bookingRoutes = require('./routes/bookings');
+const reviewRoutes = require('./routes/reviews');
+const lodgeRoutes = require('./routes/lodges');
+const restaurantRoutes = require('./routes/restaurants');
+const travelGearRoutes = require('./routes/travel-gear');
+const authRoutes = require('./routes/auth');
 
 // Middleware
 app.use(helmet()); // Security headers
@@ -33,6 +42,15 @@ app.get('/health', (req, res) => {
 });
 
 // API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/parks', parkRoutes);
+app.use('/api/tours', tourRoutes);
+app.use('/api/bookings', bookingRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/lodges', lodgeRoutes);
+app.use('/api/restaurants', restaurantRoutes);
+app.use('/api/travel-gear', travelGearRoutes);
 app.use('/api/wildlife', wildlifeRoutes);
 app.use('/api/routes', routeRoutes);
 app.use('/api/accommodations', accommodationRoutes);

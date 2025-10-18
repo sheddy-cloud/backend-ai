@@ -1,5 +1,3 @@
--- ...existing code...
-
 BEGIN;
 
 -- Create parks table
