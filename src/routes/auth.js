@@ -115,7 +115,7 @@ router.post('/login', [
     const { email, password } = req.body;
 
     // Find user and include password for comparison
-    const user = await User.findByEmail(email).select('+password');
+    const user = await User.findByEmail(email);
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -282,7 +282,7 @@ router.put('/change-password', protect, [
     const { currentPassword, newPassword } = req.body;
 
     // Get user with password
-    const user = await User.findById(req.user._id).select('+password');
+    const user = await User.findById(req.user._id);
 
     // Check current password
     const isCurrentPasswordValid = await user.comparePassword(currentPassword);

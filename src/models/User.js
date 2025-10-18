@@ -211,7 +211,7 @@ class User {
       params.push(id);
 
       const query = `UPDATE users SET ${setClause.join(', ')} 
-                     WHERE id = $${paramCount} AND deleted_at IS NULL 
+                     WHERE id = $${paramCount} 
                      RETURNING *`;
 
       const result = await execute(query, params);
@@ -225,7 +225,7 @@ class User {
   static async findByIdAndDelete(id) {
     try {
       const result = await execute(
-        'UPDATE users SET deleted_at = NOW() WHERE id = $1 AND deleted_at IS NULL RETURNING *',
+        'UPDATE users SET is_active = false WHERE id = $1 RETURNING *',
         [id]
       );
       return result.rows[0] ? new User(result.rows[0]) : null;
@@ -243,11 +243,11 @@ class User {
         const groupBy = pipeline[0].$group._id;
         const countField = Object.keys(pipeline[0].$group).find(key => key !== '_id');
         
-        let query = `SELECT ${groupBy} as _id, COUNT(*) as count FROM users WHERE deleted_at IS NULL`;
+        let query = `SELECT ${groupBy} as _id, COUNT(*) as count FROM users`;
         const params = [];
 
         if (groupBy === 'role') {
-          query = `SELECT role as _id, COUNT(*) as count FROM users WHERE deleted_at IS NULL GROUP BY role`;
+          query = `SELECT role as _id, COUNT(*) as count FROM users GROUP BY role`;
         }
 
         const result = await getRows(query, params);

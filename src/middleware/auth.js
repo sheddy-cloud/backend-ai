@@ -28,7 +28,7 @@ const protect = async (req, res, next) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       
       // Get user from database
-      const user = await User.findById(decoded.id).select('-password');
+      const user = await User.findById(decoded.id);
       
       if (!user) {
         return res.status(401).json({
@@ -97,7 +97,7 @@ const optionalAuth = async (req, res, next) => {
     if (token) {
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findById(decoded.id).select('-password');
+        const user = await User.findById(decoded.id);
         
         if (user && user.isActive) {
           req.user = user;

@@ -13,13 +13,8 @@ router.get('/', protect, authorize('Admin'), async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    const users = await User.find({ isActive: true })
-      .select('-password')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-
-    const total = await User.countDocuments({ isActive: true });
+    const users = await User.find({ isActive: true, limit: limit, offset: skip });
+    const total = await User.count({ isActive: true });
 
     res.json({
       success: true,
@@ -67,7 +62,7 @@ router.get('/role/:role', protect, async (req, res) => {
 // @access  Private
 router.get('/:id', protect, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('-password');
+    const user = await User.findById(req.params.id);
     
     if (!user) {
       return res.status(404).json({
@@ -96,9 +91,8 @@ router.put('/:id/deactivate', protect, authorize('Admin'), async (req, res) => {
   try {
     const user = await User.findByIdAndUpdate(
       req.params.id,
-      { isActive: false },
-      { new: true }
-    ).select('-password');
+      { isActive: false }
+    );
 
     if (!user) {
       return res.status(404).json({
@@ -126,20 +120,23 @@ router.put('/:id/deactivate', protect, authorize('Admin'), async (req, res) => {
 // @access  Private/Admin
 router.get('/stats/overview', protect, authorize('Admin'), async (req, res) => {
   try {
-    const stats = await User.aggregate([
-      {
-        $group: {
-          _id: '$role',
-          count: { $sum: 1 },
-          activeCount: {
-            $sum: { $cond: ['$isActive', 1, 0] }
-          }
-        }
-      }
-    ]);
-
-    const totalUsers = await User.countDocuments();
-    const activeUsers = await User.countDocuments({ isActive: true });
+    // Get basic stats using our PostgreSQL model
+    const totalUsers = await User.count();
+    const activeUsers = await User.count({ isActive: true });
+    
+    // Get role-based stats
+    const roleStats = [];
+    const roles = ['Tourist', 'Travel Agency', 'Lodge Owner', 'Restaurant Owner', 'Travel Gear Seller', 'Photographer', 'Tour Guide'];
+    
+    for (const role of roles) {
+      const count = await User.count({ role: role });
+      const activeCount = await User.count({ role: role, isActive: true });
+      roleStats.push({
+        _id: role,
+        count: count,
+        activeCount: activeCount
+      });
+    }
 
     res.json({
       success: true,
