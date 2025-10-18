@@ -7,17 +7,17 @@ class User {
   constructor(data) {
     this.id = data.id;
     this.email = data.email;
-    this.password = data.password;
+    this.password = data.password_hash || data.password; // Handle both column names
     this.name = data.name;
     this.phone = data.phone;
     this.role = data.role;
     this.avatar = data.avatar;
-    this.isActive = data.isActive;
-    this.isVerified = data.isVerified;
-    this.lastActive = data.lastActive;
-    this.additionalData = data.additionalData;
-    this.createdAt = data.createdAt;
-    this.updatedAt = data.updatedAt;
+    this.isActive = data.is_active || data.isActive;
+    this.isVerified = data.is_verified || data.isVerified;
+    this.lastActive = data.last_active || data.lastActive;
+    this.additionalData = data.additional_data || data.additionalData;
+    this.createdAt = data.created_at || data.createdAt;
+    this.updatedAt = data.updated_at || data.updatedAt;
   }
 
   // Instance methods
@@ -47,7 +47,7 @@ class User {
   static async findByEmail(email) {
     try {
       const user = await getRow(
-        'SELECT * FROM users WHERE email = $1 AND deleted_at IS NULL',
+        'SELECT * FROM users WHERE email = $1',
         [email.toLowerCase()]
       );
       return user ? new User(user) : null;
@@ -60,7 +60,7 @@ class User {
   static async findById(id) {
     try {
       const user = await getRow(
-        'SELECT * FROM users WHERE id = $1 AND deleted_at IS NULL',
+        'SELECT * FROM users WHERE id = $1',
         [id]
       );
       return user ? new User(user) : null;
@@ -73,7 +73,7 @@ class User {
   static async findByRole(role) {
     try {
       const users = await getRows(
-        'SELECT id, email, name, phone, role, avatar, is_active, is_verified, last_active, additional_data, created_at, updated_at FROM users WHERE role = $1 AND is_active = true AND deleted_at IS NULL',
+        'SELECT id, email, name, phone, role, avatar, is_active, is_verified, last_active, additional_data, created_at, updated_at FROM users WHERE role = $1 AND is_active = true',
         [role]
       );
       return users.map(user => new User(user));
@@ -85,7 +85,7 @@ class User {
 
   static async find(options = {}) {
     try {
-      let query = 'SELECT * FROM users WHERE deleted_at IS NULL';
+      let query = 'SELECT * FROM users';
       const params = [];
       let paramCount = 0;
 
@@ -119,7 +119,7 @@ class User {
 
   static async count(options = {}) {
     try {
-      let query = 'SELECT COUNT(*) as count FROM users WHERE deleted_at IS NULL';
+      let query = 'SELECT COUNT(*) as count FROM users';
       const params = [];
       let paramCount = 0;
 
@@ -146,7 +146,7 @@ class User {
       const hashedPassword = await bcrypt.hash(password, salt);
 
       const result = await execute(
-        `INSERT INTO users (id, email, password, name, phone, role, additional_data, is_active, is_verified, created_at, updated_at)
+        `INSERT INTO users (id, email, password_hash, name, phone, role, additional_data, is_active, is_verified, created_at, updated_at)
          VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, true, false, NOW(), NOW())
          RETURNING *`,
         [email.toLowerCase(), hashedPassword, name, phone, role, JSON.stringify(additionalData)]
@@ -168,7 +168,7 @@ class User {
            email = $1, name = $2, phone = $3, role = $4, avatar = $5, 
            is_active = $6, is_verified = $7, additional_data = $8, 
            updated_at = NOW()
-           WHERE id = $9 AND deleted_at IS NULL
+           WHERE id = $9
            RETURNING *`,
           [
             this.email, this.name, this.phone, this.role, this.avatar,

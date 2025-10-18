@@ -16,7 +16,9 @@ CREATE TABLE IF NOT EXISTS users (
   phone VARCHAR(20) NOT NULL,
   role VARCHAR(50) NOT NULL CHECK (role IN ('Tourist', 'Travel Agency', 'Lodge Owner', 'Restaurant Owner', 'Travel Gear Seller', 'Photographer', 'Tour Guide')),
   is_active BOOLEAN DEFAULT true,
+  is_verified BOOLEAN DEFAULT false,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   additional_data JSONB -- Role-specific data stored as JSON
 );
