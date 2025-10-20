@@ -16,7 +16,7 @@ class Lodge {
 
   static async find(options = {}) {
     try {
-      let query = 'SELECT * FROM lodges WHERE deleted_at IS NULL';
+      let query = 'SELECT * FROM lodges';
       const params = [];
       let paramCount = 0;
 
@@ -51,7 +51,7 @@ class Lodge {
   static async findById(id) {
     try {
       const lodge = await getRow(
-        'SELECT * FROM lodges WHERE id = $1 AND deleted_at IS NULL',
+        'SELECT * FROM lodges WHERE id = $1',
         [id]
       );
       return lodge ? new Lodge(lodge) : null;

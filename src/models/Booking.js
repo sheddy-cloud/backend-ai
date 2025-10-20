@@ -17,7 +17,7 @@ class Booking {
 
   static async find(options = {}) {
     try {
-      let query = 'SELECT * FROM bookings WHERE deleted_at IS NULL';
+      let query = 'SELECT * FROM bookings';
       const params = [];
       let paramCount = 0;
 
@@ -58,7 +58,7 @@ class Booking {
   static async findById(id) {
     try {
       const booking = await getRow(
-        'SELECT * FROM bookings WHERE id = $1 AND deleted_at IS NULL',
+        'SELECT * FROM bookings WHERE id = $1',
         [id]
       );
       return booking ? new Booking(booking) : null;
@@ -101,7 +101,7 @@ class Booking {
       params.push(id);
 
       const query = `UPDATE bookings SET ${setClause.join(', ')} 
-                     WHERE id = $${paramCount} AND deleted_at IS NULL 
+                     WHERE id = $${paramCount} 
                      RETURNING *`;
 
       const result = await execute(query, params);

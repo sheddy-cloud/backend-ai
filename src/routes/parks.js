@@ -30,12 +30,8 @@ router.get('/', optionalAuth, async (req, res) => {
       ];
     }
 
-    const parks = await Park.find(query)
-      .sort({ 'rating.average': -1 })
-      .skip(skip)
-      .limit(limit);
-
-    const total = await Park.countDocuments(query);
+    const parks = await Park.find({ ...query, limit: limit, offset: skip });
+    const total = await Park.count(query);
 
     res.json({
       success: true,
@@ -112,8 +108,7 @@ router.put('/:id', protect, authorize('Admin'), async (req, res) => {
   try {
     const park = await Park.findByIdAndUpdate(
       req.params.id,
-      req.body,
-      { new: true, runValidators: true }
+      req.body
     );
 
     if (!park) {
@@ -144,8 +139,7 @@ router.delete('/:id', protect, authorize('Admin'), async (req, res) => {
   try {
     const park = await Park.findByIdAndUpdate(
       req.params.id,
-      { isActive: false },
-      { new: true }
+      { isActive: false }
     );
 
     if (!park) {

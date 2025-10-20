@@ -16,7 +16,7 @@ class Restaurant {
 
   static async find(options = {}) {
     try {
-      let query = 'SELECT * FROM restaurants WHERE deleted_at IS NULL';
+      let query = 'SELECT * FROM restaurants';
       const params = [];
       let paramCount = 0;
 
@@ -51,7 +51,7 @@ class Restaurant {
   static async findById(id) {
     try {
       const restaurant = await getRow(
-        'SELECT * FROM restaurants WHERE id = $1 AND deleted_at IS NULL',
+        'SELECT * FROM restaurants WHERE id = $1',
         [id]
       );
       return restaurant ? new Restaurant(restaurant) : null;

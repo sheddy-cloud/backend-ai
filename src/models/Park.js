@@ -16,7 +16,7 @@ class Park {
 
   static async find(options = {}) {
     try {
-      let query = 'SELECT * FROM parks WHERE deleted_at IS NULL';
+      let query = 'SELECT * FROM parks WHERE 1=1';
       const params = [];
       let paramCount = 0;
 
@@ -38,7 +38,8 @@ class Park {
         params.push(`%${options.search}%`);
       }
 
-      query += ' ORDER BY rating DESC';
+      // Order by a valid column; fall back to name
+      query += ' ORDER BY name ASC';
 
       if (options.limit) {
         paramCount++;
@@ -46,10 +47,11 @@ class Park {
         params.push(options.limit);
       }
 
-      if (options.skip) {
+      const offset = options.skip ?? options.offset;
+      if (offset) {
         paramCount++;
         query += ` OFFSET $${paramCount}`;
-        params.push(options.skip);
+        params.push(offset);
       }
 
       const parks = await getRows(query, params);
@@ -63,7 +65,7 @@ class Park {
   static async findById(id) {
     try {
       const park = await getRow(
-        'SELECT * FROM parks WHERE id = $1 AND deleted_at IS NULL',
+        'SELECT * FROM parks WHERE id = $1',
         [id]
       );
       return park ? new Park(park) : null;
@@ -75,7 +77,7 @@ class Park {
 
   static async count(options = {}) {
     try {
-      let query = 'SELECT COUNT(*) as count FROM parks WHERE deleted_at IS NULL';
+      let query = 'SELECT COUNT(*) as count FROM parks WHERE 1=1';
       const params = [];
       let paramCount = 0;
 
@@ -126,7 +128,7 @@ class Park {
       params.push(id);
 
       const query = `UPDATE parks SET ${setClause.join(', ')} 
-                     WHERE id = $${paramCount} AND deleted_at IS NULL 
+                     WHERE id = $${paramCount} 
                      RETURNING *`;
 
       const result = await execute(query, params);
@@ -140,7 +142,7 @@ class Park {
   static async findByLocation(location) {
     try {
       const parks = await getRows(
-        'SELECT * FROM parks WHERE location ILIKE $1 AND deleted_at IS NULL',
+        'SELECT * FROM parks WHERE location ILIKE $1',
         [`%${location}%`]
       );
       return parks.map(park => new Park(park));
@@ -155,7 +157,7 @@ class Park {
       // This is a simplified implementation
       // For production, you'd want to use PostGIS for proper geographic queries
       const parks = await getRows(
-        'SELECT *, (6371 * acos(cos(radians($1)) * cos(radians(latitude)) * cos(radians(longitude) - radians($2)) + sin(radians($1)) * sin(radians(latitude)))) AS distance FROM parks WHERE deleted_at IS NULL HAVING distance < $3 ORDER BY distance',
+        'SELECT *, (6371 * acos(cos(radians($1)) * cos(radians(latitude)) * cos(radians(longitude) - radians($2)) + sin(radians($1)) * sin(radians(latitude)))) AS distance FROM parks HAVING distance < $3 ORDER BY distance',
         [latitude, longitude, maxDistance]
       );
       return parks.map(park => new Park(park));

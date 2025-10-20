@@ -33,14 +33,8 @@ router.get('/', optionalAuth, async (req, res) => {
       ];
     }
 
-    const tours = await Tour.find(query)
-      .populate('park', 'name location')
-      .populate('agency', 'name companyName')
-      .sort({ 'rating.average': -1 })
-      .skip(skip)
-      .limit(limit);
-
-    const total = await Tour.countDocuments(query);
+    const tours = await Tour.find({ ...query, limit: limit, offset: skip });
+    const total = await Tour.count(query);
 
     res.json({
       success: true,
@@ -67,9 +61,7 @@ router.get('/', optionalAuth, async (req, res) => {
 // @access  Public
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
-    const tour = await Tour.findById(req.params.id)
-      .populate('park', 'name location description wildlife')
-      .populate('agency', 'name companyName location');
+    const tour = await Tour.findById(req.params.id);
 
     if (!tour || !tour.isActive) {
       return res.status(404).json({
@@ -141,8 +133,7 @@ router.put('/:id', protect, authorize('Travel Agency'), async (req, res) => {
 
     const updatedTour = await Tour.findByIdAndUpdate(
       req.params.id,
-      req.body,
-      { new: true, runValidators: true }
+      req.body
     );
 
     res.json({

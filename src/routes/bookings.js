@@ -65,11 +65,8 @@ router.post('/', protect, async (req, res) => {
     // Update tour participants
     await tour.bookSpots(totalParticipants, new Date(startDate));
 
-    // Populate booking data
-    await booking.populate([
-      { path: 'tour', select: 'title durationDays' },
-      { path: 'user', select: 'name email' }
-    ]);
+    // Note: In PostgreSQL implementation, we don't need populate
+    // The booking object already contains the necessary data
 
     res.status(201).json({
       success: true,
@@ -110,9 +107,7 @@ router.get('/', protect, async (req, res) => {
 // @access  Private
 router.get('/:id', protect, async (req, res) => {
   try {
-    const booking = await Booking.findById(req.params.id)
-      .populate('tour', 'title durationDays priceUsd')
-      .populate('user', 'name email phone');
+    const booking = await Booking.findById(req.params.id);
 
     if (!booking) {
       return res.status(404).json({

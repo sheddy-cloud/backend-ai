@@ -29,7 +29,7 @@ router.get('/', optionalAuth, async (req, res) => {
 // @access  Public
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
-    const agency = await User.findById(req.params.id).select('-password');
+    const agency = await User.findById(req.params.id);
 
     if (!agency || agency.role !== 'Travel Agency' || !agency.isActive) {
       return res.status(404).json({

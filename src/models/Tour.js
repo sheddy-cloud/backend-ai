@@ -22,7 +22,7 @@ class Tour {
 
   static async find(options = {}) {
     try {
-      let query = 'SELECT * FROM tours WHERE deleted_at IS NULL';
+      let query = 'SELECT * FROM tours';
       const params = [];
       let paramCount = 0;
 
@@ -99,7 +99,7 @@ class Tour {
   static async findById(id) {
     try {
       const tour = await getRow(
-        'SELECT * FROM tours WHERE id = $1 AND deleted_at IS NULL',
+        'SELECT * FROM tours WHERE id = $1',
         [id]
       );
       return tour ? new Tour(tour) : null;
@@ -111,7 +111,7 @@ class Tour {
 
   static async count(options = {}) {
     try {
-      let query = 'SELECT COUNT(*) as count FROM tours WHERE deleted_at IS NULL';
+      let query = 'SELECT COUNT(*) as count FROM tours';
       const params = [];
       let paramCount = 0;
 
@@ -178,7 +178,7 @@ class Tour {
       params.push(id);
 
       const query = `UPDATE tours SET ${setClause.join(', ')} 
-                     WHERE id = $${paramCount} AND deleted_at IS NULL 
+                     WHERE id = $${paramCount} 
                      RETURNING *`;
 
       const result = await execute(query, params);
@@ -192,7 +192,7 @@ class Tour {
   static async findByPark(parkId) {
     try {
       const tours = await getRows(
-        'SELECT * FROM tours WHERE park_id = $1 AND deleted_at IS NULL ORDER BY rating DESC',
+        'SELECT * FROM tours WHERE park_id = $1 ORDER BY rating DESC',
         [parkId]
       );
       return tours.map(tour => new Tour(tour));
@@ -205,7 +205,7 @@ class Tour {
   static async findByAgency(agencyId) {
     try {
       const tours = await getRows(
-        'SELECT * FROM tours WHERE agency_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC',
+        'SELECT * FROM tours WHERE agency_id = $1 ORDER BY created_at DESC',
         [agencyId]
       );
       return tours.map(tour => new Tour(tour));
