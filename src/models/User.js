@@ -85,7 +85,7 @@ class User {
 
   static async find(options = {}) {
     try {
-      let query = 'SELECT * FROM users';
+      let query = 'SELECT * FROM users WHERE 1=1';
       const params = [];
       let paramCount = 0;
 
@@ -119,7 +119,7 @@ class User {
 
   static async count(options = {}) {
     try {
-      let query = 'SELECT COUNT(*) as count FROM users';
+      let query = 'SELECT COUNT(*) as count FROM users WHERE 1=1';
       const params = [];
       let paramCount = 0;
 

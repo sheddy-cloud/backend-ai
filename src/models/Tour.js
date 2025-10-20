@@ -22,7 +22,7 @@ class Tour {
 
   static async find(options = {}) {
     try {
-      let query = 'SELECT * FROM tours';
+      let query = 'SELECT * FROM tours WHERE 1=1';
       const params = [];
       let paramCount = 0;
 
@@ -30,12 +30,6 @@ class Tour {
         paramCount++;
         query += ` AND is_active = $${paramCount}`;
         params.push(options.isActive);
-      }
-
-      if (options.isAvailable !== undefined) {
-        paramCount++;
-        query += ` AND is_available = $${paramCount}`;
-        params.push(options.isAvailable);
       }
 
       if (options.parkId) {
@@ -70,11 +64,13 @@ class Tour {
 
       if (options.search) {
         paramCount++;
-        query += ` AND (title ILIKE $${paramCount} OR description ILIKE $${paramCount} OR tags ILIKE $${paramCount})`;
-        params.push(`%${options.search}%`);
+        const like = `%${options.search}%`;
+        query += ` AND (title ILIKE $${paramCount} OR description ILIKE $${paramCount})`;
+        params.push(like);
       }
 
-      query += ' ORDER BY rating DESC';
+      // Order by creation time (rating column may not exist)
+      query += ' ORDER BY created_at DESC';
 
       if (options.limit) {
         paramCount++;
@@ -82,10 +78,11 @@ class Tour {
         params.push(options.limit);
       }
 
-      if (options.skip) {
+      const offset = options.skip ?? options.offset;
+      if (offset) {
         paramCount++;
         query += ` OFFSET $${paramCount}`;
-        params.push(options.skip);
+        params.push(offset);
       }
 
       const tours = await getRows(query, params);
@@ -111,7 +108,7 @@ class Tour {
 
   static async count(options = {}) {
     try {
-      let query = 'SELECT COUNT(*) as count FROM tours';
+      let query = 'SELECT COUNT(*) as count FROM tours WHERE 1=1';
       const params = [];
       let paramCount = 0;
 
@@ -119,12 +116,6 @@ class Tour {
         paramCount++;
         query += ` AND is_active = $${paramCount}`;
         params.push(options.isActive);
-      }
-
-      if (options.isAvailable !== undefined) {
-        paramCount++;
-        query += ` AND is_available = $${paramCount}`;
-        params.push(options.isAvailable);
       }
 
       const result = await getRow(query, params);
